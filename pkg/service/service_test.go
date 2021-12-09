@@ -28,11 +28,13 @@ func setUp(t *testing.T) (*mocks.MockRepository, *mocks.MockDBRepository, pkg.Se
 func TestService_SaveURL(t *testing.T) {
 	rep, repDb, service := setUp(t)
 	if DataBase {
-		repDb.EXPECT().DBCheckURL(testURL.URL).AnyTimes().Return("", errors.New(""))
+		repDb.EXPECT().DBCheckURL(testURL.URL).Return("", errors.New(""))
 		repDb.EXPECT().DBSaveURL(testURL.URL, gomock.Any()).AnyTimes().Return(nil)
 
 		_, err := service.SaveURL(testURL.URL)
 		assert.Nil(t, err)
+
+		return
 	}
 
 	rep.EXPECT().SaveURL(testURL.URL, gomock.Any()).Return(testLink, nil)
@@ -44,9 +46,10 @@ func TestService_SaveURL(t *testing.T) {
 func TestService_GetURL(t *testing.T) {
 	rep, repDb, service := setUp(t)
 	if DataBase {
-		repDb.EXPECT().DBGetURL(testLink).AnyTimes().Return(testURL.URL, nil)
+		repDb.EXPECT().DBGetURL(testLink).Return(testURL.URL, nil)
 		_, err := service.GetURL(testLink)
 		assert.Nil(t, err)
+		return
 
 	}
 
@@ -59,9 +62,10 @@ func TestService_GetURL(t *testing.T) {
 func TestService_GetURLError(t *testing.T) {
 	rep, repDb, service := setUp(t)
 	if DataBase {
-		repDb.EXPECT().DBGetURL(testLink).AnyTimes().Return("", errors.New(""))
+		repDb.EXPECT().DBGetURL(testLink).Return("", errors.New(""))
 		_, err := service.GetURL(testLink)
 		assert.NotNil(t, err)
+		return
 	}
 
 	rep.EXPECT().GetURL(testLink).Return("", errors.New(""))
