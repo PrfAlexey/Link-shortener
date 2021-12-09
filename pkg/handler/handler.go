@@ -3,6 +3,7 @@ package handler
 import (
 	"LinkShortener/pkg"
 	"errors"
+	"fmt"
 	"github.com/labstack/echo"
 	"net/http"
 	"net/url"
@@ -51,15 +52,21 @@ func (h *Handler) SaveURL(c echo.Context) error {
 }
 
 func (h *Handler) GetURL(c echo.Context) error {
-	link := c.Param("link")
+	fmt.Println(c.Path())
+	link := c.Get("link").(string)
 
 	URL, err := h.services.GetURL(link)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
-	c.JSON(http.StatusOK, map[string]interface{}{
+
+	err = c.JSON(http.StatusOK, map[string]interface{}{
 		"URL": URL,
 	})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+	}
+
 	return nil
 }
 

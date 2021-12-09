@@ -3,6 +3,7 @@ package service
 import (
 	"LinkShortener/pkg"
 	"math/rand"
+	"time"
 )
 
 const (
@@ -23,8 +24,13 @@ func NewService(repo pkg.Repository, dbrepo pkg.DBRepository) pkg.Service {
 }
 
 func (s *Service) SaveURL(URL string) (string, error) {
+
+	var link string
 	if DataBase {
-		var link string
+		if link, err := s.dbrepo.DBCheckURL(URL); err == nil {
+			return link, err
+		}
+
 		for {
 			link = GenerateLink(URL)
 			if err := s.dbrepo.DBSaveURL(URL, link); err == nil {
@@ -32,11 +38,11 @@ func (s *Service) SaveURL(URL string) (string, error) {
 			}
 		}
 	}
-	var link string
+
 	for {
 		link = GenerateLink(URL)
-		if err := s.repo.SaveURL(URL, link); err == nil {
-			return link, nil
+		if shortURL, err := s.repo.SaveURL(URL, link); err == nil {
+			return shortURL, nil
 		}
 	}
 
@@ -53,8 +59,10 @@ func (s *Service) GetURL(link string) (string, error) {
 
 func GenerateLink(URL string) string {
 	link := make([]byte, 10)
+	rand.Seed(time.Now().UnixNano())
 	for i := range link {
 		link[i] = letterBytes[rand.Intn(len(letterBytes))]
 	}
+
 	return string(link)
 }
