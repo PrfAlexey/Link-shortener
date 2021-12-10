@@ -14,12 +14,11 @@ import (
 )
 
 var (
-	testURL        = URL{URL: "https://github.com/test_URL"}
-	testLink       = "1234567891"
-	testInvalidURL = "github.com/test_URL"
+	testURL  = URL{URL: "https://github.com/test_URL"}
+	testLink = "1234567891"
 )
 
-func setUp(t *testing.T, URL, method string) (echo.Context, Handler, *mocks.MockService) {
+func setUp(t *testing.T, URL, method string, testingURL URL) (echo.Context, Handler, *mocks.MockService) {
 	e := echo.New()
 	r := e.Router()
 	r.Add(method, URL, func(ctx echo.Context) error { return nil })
@@ -33,7 +32,7 @@ func setUp(t *testing.T, URL, method string) (echo.Context, Handler, *mocks.Mock
 	var req *http.Request
 	switch method {
 	case http.MethodPost:
-		f, _ := json.Marshal(testURL)
+		f, _ := json.Marshal(testingURL)
 		req = httptest.NewRequest(http.MethodPost, URL, bytes.NewBuffer(f))
 	case http.MethodGet:
 		req = httptest.NewRequest(http.MethodGet, URL, nil)
@@ -47,7 +46,7 @@ func setUp(t *testing.T, URL, method string) (echo.Context, Handler, *mocks.Mock
 }
 
 func TestHandler_GetURL(t *testing.T) {
-	c, h, service := setUp(t, "/:link", http.MethodGet)
+	c, h, service := setUp(t, "/:link", http.MethodGet, testURL)
 	c.Set("link", testLink)
 
 	service.EXPECT().GetURL(testLink).Return(testURL.URL, nil)
@@ -58,18 +57,19 @@ func TestHandler_GetURL(t *testing.T) {
 }
 
 func TestHandler_GetURLError(t *testing.T) {
-	c, h, service := setUp(t, "/:link", http.MethodGet)
+	c, h, service := setUp(t, "/:link", http.MethodGet, testURL)
 	c.Set("link", testLink)
 
-	service.EXPECT().GetURL(testLink).Return(testURL.URL, errors.New(""))
+	service.EXPECT().GetURL(testLink).Return("", errors.New("111"))
 
 	err := h.GetURL(c)
 
+	println(err.Error())
 	assert.NotNil(t, err)
 }
 
 func TestHandler_SaveURL(t *testing.T) {
-	c, h, service := setUp(t, "/link", http.MethodPost)
+	c, h, service := setUp(t, "/link", http.MethodPost, testURL)
 	c.Request().Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 
 	service.EXPECT().SaveURL(testURL.URL).Return(testLink, nil)
@@ -80,7 +80,7 @@ func TestHandler_SaveURL(t *testing.T) {
 }
 
 func TestHandler_SaveURLError(t *testing.T) {
-	c, h, service := setUp(t, "/link", http.MethodPost)
+	c, h, service := setUp(t, "/link", http.MethodPost, testURL)
 	c.Request().Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 
 	service.EXPECT().SaveURL(testURL.URL).Return(testLink, errors.New(""))
@@ -90,7 +90,7 @@ func TestHandler_SaveURLError(t *testing.T) {
 }
 
 func TestHandler_SaveURLErrorBind(t *testing.T) {
-	c, h, _ := setUp(t, "/link", http.MethodPost)
+	c, h, _ := setUp(t, "/link", http.MethodPost, testURL)
 	var URL URL
 	err1 := c.Bind(&URL)
 

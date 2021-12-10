@@ -8,7 +8,7 @@ import (
 
 const (
 	letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_"
-	DataBase    = true
+	DataBase    = false
 )
 
 type Service struct {

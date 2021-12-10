@@ -63,7 +63,7 @@ func (r *DBRepository) DBGetURL(link string) (string, error) {
 	err := pgxscan.Select(context.Background(), r.pool, &URL,
 		`SELECT url FROM urlandlinks WHERE link = $1`, link)
 	if errors.As(err, &pgx.ErrNoRows) {
-		return "", errors.New("Invalid link111")
+		return "", errors.New("Invalid link")
 	}
 	return URL[0], nil
 }

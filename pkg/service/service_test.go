@@ -65,6 +65,7 @@ func TestService_GetURLError(t *testing.T) {
 		repDb.EXPECT().DBGetURL(testLink).Return("", errors.New(""))
 		_, err := service.GetURL(testLink)
 		assert.NotNil(t, err)
+
 		return
 	}
 
