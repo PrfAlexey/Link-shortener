@@ -2,13 +2,19 @@ package repository
 
 import (
 	"LinkShortener/pkg"
-	"context"
+	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/georgysavva/scany/pgxscan"
 	"github.com/jackc/pgx/v4"
-	"github.com/jackc/pgx/v4/pgxpool"
 )
+
+type link struct {
+	link string
+}
+
+type URL struct {
+	URL string
+}
 
 //Repository in memory
 type Repository struct {
@@ -17,7 +23,7 @@ type Repository struct {
 
 //DBRepository ...
 type DBRepository struct {
-	pool *pgxpool.Pool
+	db *sql.DB
 }
 
 //NewRepository ...
@@ -28,9 +34,9 @@ func NewRepository(storage map[string]string) pkg.Repository {
 }
 
 //NewDBRepository ...
-func NewDBRepository(pool *pgxpool.Pool) pkg.DBRepository {
+func NewDBRepository(db *sql.DB) pkg.DBRepository {
 	return &DBRepository{
-		pool: pool,
+		db: db,
 	}
 }
 
@@ -57,7 +63,8 @@ func (r *Repository) GetURL(link string) (string, error) {
 
 //DBSaveURL ...
 func (r *DBRepository) DBSaveURL(URL, link string) error {
-	_, err := r.pool.Exec(context.Background(), `INSERT INTO urlandlinks (url, link) values ($1, $2)`, URL, link)
+	_, err := r.db.Exec(`INSERT INTO urlandlinks (url, link) values ($1, $2)`, URL, link)
+
 	if err != nil {
 		fmt.Println(err.Error())
 		return errors.New("duplicate link")
@@ -67,24 +74,29 @@ func (r *DBRepository) DBSaveURL(URL, link string) error {
 
 //DBGetURL ...
 func (r *DBRepository) DBGetURL(link string) (string, error) {
-	var URL []string
-	err := pgxscan.Select(context.Background(), r.pool, &URL,
-		`SELECT url FROM urlandlinks WHERE link = $1`, link)
+	URL := &URL{}
+
+	row := r.db.QueryRow(`SELECT url FROM urlandlinks WHERE link = $1`, link)
+	err := row.Scan(&URL.URL)
+
 	if errors.As(err, &pgx.ErrNoRows) {
 		return "", errors.New("Invalid link")
 	}
-	return URL[0], nil
+
+	return URL.URL, nil
 }
 
 //DBCheckURL ...
-func (r *DBRepository) DBCheckURL(URL string) (string, error) {
-	var link []string
+func (r *DBRepository) DBCheckURL(url string) (string, error) {
+	link := &link{}
 
-	err := pgxscan.Select(context.Background(), r.pool, &link,
-		`SELECT link FROM urlandlinks WHERE url = $1`, URL)
+	row := r.db.QueryRow(`SELECT link FROM urlandlinks WHERE url = $1`, url)
 
-	if errors.As(err, &pgx.ErrNoRows) || len(link) == 0 {
+	err := row.Scan(&link.link)
+
+	if err != nil {
 		return "", errors.New("there is no such URL")
 	}
-	return link[0], nil
+
+	return link.link, nil
 }

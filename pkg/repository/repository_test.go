@@ -3,26 +3,18 @@ package repository
 import (
 	"LinkShortener/pkg"
 	mocks "LinkShortener/pkg/mocks"
-	"context"
 	"errors"
-	"fmt"
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/golang/mock/gomock"
-	"github.com/jackc/pgmock"
-	"github.com/jackc/pgproto3/v2"
-	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"net"
-	"strings"
 	"testing"
-	"time"
 )
 
-const DBConnect = "user=postgres dbname=postgres1 password=4444 host=localhost port=5432 sslmode=disable pool_max_conns=50"
+const dbConnect = "user=postgres dbname=postgres1 password=4444 host=localhost port=5432 sslmode=disable pool_max_conns=50"
 
 var (
-	testLink        = "1234567890"
-	testURL         = "https://github.com/"
+	testLink        = "Q2zmAaE9Cy"
+	testURL         = "https://ru.stackoverflow.com/"
 	testInvalidLink = "1224567890"
 	testInvalidURL  = "github"
 )
@@ -76,101 +68,95 @@ func TestRepository_SaveURLError(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
-func setUpDB(t *testing.T) *pgxpool.Pool {
-	script := &pgmock.Script{
-		Steps: pgmock.AcceptUnauthenticatedConnRequestSteps(),
+func TestDBRepository_DBCheckURL(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("cant create mock: %s", err)
 	}
-	script.Steps = append(script.Steps, pgmock.ExpectMessage(&pgproto3.Query{String: ""}))
-	script.Steps = append(script.Steps, pgmock.SendMessage(&pgproto3.RowDescription{
-		Fields: []pgproto3.FieldDescription{
-			pgproto3.FieldDescription{
-				Name:                 []byte("URL"),
-				TableOID:             0,
-				TableAttributeNumber: 0,
-				DataTypeOID:          23,
-				DataTypeSize:         60,
-				TypeModifier:         -1,
-				Format:               0,
-			},
-			pgproto3.FieldDescription{
-				Name:                 []byte("Link"),
-				TableOID:             0,
-				TableAttributeNumber: 0,
-				DataTypeOID:          23,
-				DataTypeSize:         60,
-				TypeModifier:         -1,
-				Format:               0,
-			},
-		},
-	}))
-	script.Steps = append(script.Steps, pgmock.SendMessage(&pgproto3.DataRow{
-		Values: [][]byte{[]byte("1")},
-	}))
-	script.Steps = append(script.Steps, pgmock.SendMessage(&pgproto3.CommandComplete{CommandTag: []byte("SELECT 1")}))
-	script.Steps = append(script.Steps, pgmock.SendMessage(&pgproto3.ReadyForQuery{TxStatus: 'I'}))
-	script.Steps = append(script.Steps, pgmock.ExpectMessage(&pgproto3.Terminate{}))
+	defer db.Close()
 
-	ln, err := net.Listen("tcp", "127.0.0.1:")
-	require.NoError(t, err)
-	defer ln.Close()
+	repo := NewDBRepository(db)
 
-	serverErrChan := make(chan error, 1)
-	go func() {
-		defer close(serverErrChan)
+	rows := sqlmock.NewRows([]string{"link"}).AddRow(testLink)
 
-		conn, err := ln.Accept()
-		if err != nil {
-			serverErrChan <- err
-			return
-		}
-		defer conn.Close()
+	mock.ExpectQuery("SELECT link").WithArgs(testURL).WillReturnRows(rows)
 
-		err = conn.SetDeadline(time.Now().Add(time.Second))
-		if err != nil {
-			serverErrChan <- err
-			return
-		}
-
-		err = script.Run(pgproto3.NewBackend(pgproto3.NewChunkReader(conn), conn))
-		if err != nil {
-			serverErrChan <- err
-			return
-		}
-	}()
-
-	parts := strings.Split(ln.Addr().String(), ":")
-	host := parts[0]
-	port := parts[1]
-	connStr := fmt.Sprintf("sslmode=disable host=%s port=%s", host, port)
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-	pool, err := pgxpool.Connect(ctx, connStr)
-	require.NoError(t, err)
-	return pool
+	_, err1 := repo.DBCheckURL(testURL)
+	assert.Nil(t, err1)
 }
 
 func TestDBRepository_DBCheckURLError(t *testing.T) {
-	pool := setUpDB(t)
-	h := NewDBRepository(pool)
-	_, err := h.DBCheckURL(testInvalidURL)
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("cant create mock: %s", err)
+	}
+	defer db.Close()
 
-	assert.NotNil(t, err)
+	repo := NewDBRepository(db)
+
+	mock.ExpectQuery("SELECT link").WithArgs(testURL).WillReturnError(errors.New(""))
+
+	_, err1 := repo.DBCheckURL(testURL)
+	assert.NotNil(t, err1)
 }
 
-func TestDBRepository_DBGetURLError(t *testing.T) {
-	pool := setUpDB(t)
-	h := NewDBRepository(pool)
-	_, err := h.DBGetURL(testInvalidLink)
+func TestDBRepository_DBSaveURL(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("cant create mock: %s", err)
+	}
+	defer db.Close()
 
-	assert.NotNil(t, err)
+	repo := NewDBRepository(db)
+
+	mock.ExpectExec(`INSERT INTO urlandlinks`).WithArgs(testURL, testLink).WillReturnResult(sqlmock.NewResult(1, 1))
+
+	err1 := repo.DBSaveURL(testURL, testLink)
+	assert.Nil(t, err1)
 }
 
 func TestDBRepository_DBSaveURLError(t *testing.T) {
-	pool := setUpDB(t)
-	h := NewDBRepository(pool)
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("cant create mock: %s", err)
+	}
+	defer db.Close()
 
-	err := h.DBSaveURL(testURL, testLink)
+	repo := NewDBRepository(db)
 
-	assert.NotNil(t, err)
+	mock.ExpectExec(`INSERT INTO urlandlinks`).WithArgs(testURL, testLink).WillReturnError(errors.New(""))
+
+	err1 := repo.DBSaveURL(testURL, testLink)
+	assert.NotNil(t, err1)
+}
+
+func TestDBRepository_DBGetURL(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("cant create mock: %s", err)
+	}
+	defer db.Close()
+
+	repo := NewDBRepository(db)
+	rows := sqlmock.NewRows([]string{"url"}).AddRow(testURL)
+
+	mock.ExpectQuery("SELECT url").WithArgs(testLink).WillReturnRows(rows)
+
+	_, err1 := repo.DBGetURL(testLink)
+	assert.Nil(t, err1)
+}
+
+func TestDBRepository_DBGetURLError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("cant create mock: %s", err)
+	}
+	defer db.Close()
+
+	repo := NewDBRepository(db)
+
+	mock.ExpectQuery("SELECT url").WithArgs(testLink).WillReturnError(errors.New(""))
+
+	_, err1 := repo.DBGetURL(testLink)
+	assert.NotNil(t, err1)
 }

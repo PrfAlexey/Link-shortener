@@ -4,14 +4,14 @@ import (
 	"LinkShortener/pkg/handler"
 	"LinkShortener/pkg/repository"
 	"LinkShortener/pkg/service"
-	"context"
-	"github.com/jackc/pgx/v4/pgxpool"
+	"database/sql"
+	_ "github.com/jackc/pgx/stdlib"
 	"github.com/labstack/echo"
 	"log"
 )
 
 const (
-	dbConnect = "user=postgres dbname=postgres1 password=4444 host=localhost port=5432 sslmode=disable pool_max_conns=50"
+	dbConnect = "user=postgres dbname=postgres1 password=4444 host=localhost port=5432 sslmode=disable"
 	dataBase  = true
 )
 
@@ -25,15 +25,25 @@ func NewServer() *Server {
 	var server Server
 	e := echo.New()
 	if dataBase {
-		pool, err := pgxpool.Connect(context.Background(), dbConnect)
+
+		db, err := sql.Open("pgx", dbConnect)
 		if err != nil {
-			log.Fatal(err)
+			log.Fatalln("cant parse config", err)
 		}
-		err = pool.Ping(context.Background())
+		err = db.Ping() // вот тут будет первое подключение к базе
 		if err != nil {
-			log.Fatal(err)
+			log.Fatalln(err)
 		}
-		repos := repository.NewDBRepository(pool)
+		db.SetMaxOpenConns(10)
+		//pool, err := pgxpool.Connect(context.Background(), dbConnect)
+		//if err != nil {
+		//	log.Fatal(err)
+		//}
+		//err = pool.Ping(context.Background())
+		//if err != nil {
+		//	log.Fatal(err)
+		//}
+		repos := repository.NewDBRepository(db)
 		services := service.NewService(nil, repos)
 		handler := handler.NewHandler(services)
 		handler.InitHandler(e)
