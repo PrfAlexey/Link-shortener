@@ -11,19 +11,21 @@ import (
 )
 
 const (
-	DBConnect = "user=postgres dbname=postgres1 password=4444 host=localhost port=5432 sslmode=disable pool_max_conns=50"
-	DataBase  = true
+	dbConnect = "user=postgres dbname=postgres1 password=4444 host=localhost port=5432 sslmode=disable pool_max_conns=50"
+	dataBase  = true
 )
 
+//Server ...
 type Server struct {
 	e *echo.Echo
 }
 
+//NewServer ...
 func NewServer() *Server {
 	var server Server
 	e := echo.New()
-	if DataBase {
-		pool, err := pgxpool.Connect(context.Background(), DBConnect)
+	if dataBase {
+		pool, err := pgxpool.Connect(context.Background(), dbConnect)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -48,6 +50,7 @@ func NewServer() *Server {
 	return &server
 }
 
+//ListenAndServe ...
 func (s Server) ListenAndServe() {
 	s.e.Start(":8000")
 }

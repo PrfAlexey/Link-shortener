@@ -14,8 +14,10 @@ import (
 )
 
 var (
-	testURL  = URL{URL: "https://github.com/test_URL"}
-	testLink = "1234567891"
+	testURL         = URL{URL: "https://github.com/test_URL"}
+	testLink        = "1234567891"
+	testInvalidLink = "4567891"
+	testInvalidURL  = URL{URL: "github.com"}
 )
 
 func setUp(t *testing.T, URL, method string, testingURL URL) (echo.Context, Handler, *mocks.MockService) {
@@ -47,10 +49,10 @@ func setUp(t *testing.T, URL, method string, testingURL URL) (echo.Context, Hand
 
 func TestHandler_GetURL(t *testing.T) {
 	c, h, service := setUp(t, "/:link", http.MethodGet, testURL)
-	c.Set("link", testLink)
 
+	c.SetParamNames("link")
+	c.SetParamValues(testLink)
 	service.EXPECT().GetURL(testLink).Return(testURL.URL, nil)
-
 	err := h.GetURL(c)
 
 	assert.Nil(t, err)
@@ -58,14 +60,23 @@ func TestHandler_GetURL(t *testing.T) {
 
 func TestHandler_GetURLError(t *testing.T) {
 	c, h, service := setUp(t, "/:link", http.MethodGet, testURL)
-	c.Set("link", testLink)
+	c.SetParamNames("link")
+	c.SetParamValues(testLink)
 
-	service.EXPECT().GetURL(testLink).Return("", errors.New("111"))
+	service.EXPECT().GetURL(testLink).Return("", errors.New(""))
 
 	err := h.GetURL(c)
 
-	println(err.Error())
 	assert.NotNil(t, err)
+}
+
+func TestHandler_GetURLInvalidLink(t *testing.T) {
+	c, h, _ := setUp(t, "/:link", http.MethodGet, testURL)
+
+	err1 := isValidLink(testInvalidLink)
+	err := h.GetURL(c)
+
+	assert.Equal(t, echo.NewHTTPError(http.StatusBadRequest, err1.Error()), err)
 }
 
 func TestHandler_SaveURL(t *testing.T) {
@@ -97,4 +108,13 @@ func TestHandler_SaveURLErrorBind(t *testing.T) {
 	err := h.SaveURL(c)
 
 	assert.Equal(t, echo.NewHTTPError(http.StatusInternalServerError, err1.Error()), err)
+}
+
+func TestHandler_GetURLInvalidURL(t *testing.T) {
+	c, h, _ := setUp(t, "/:link", http.MethodGet, testURL)
+
+	err1 := isValidLink(testInvalidURL.URL)
+	err := h.GetURL(c)
+
+	assert.Equal(t, echo.NewHTTPError(http.StatusBadRequest, err1.Error()), err)
 }

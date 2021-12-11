@@ -8,14 +8,16 @@ import (
 
 const (
 	letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_"
-	DataBase    = false
+	dataBase    = true
 )
 
+//Service ...
 type Service struct {
 	repo   pkg.Repository
 	dbrepo pkg.DBRepository
 }
 
+//NewService ...
 func NewService(repo pkg.Repository, dbrepo pkg.DBRepository) pkg.Service {
 	return &Service{
 		repo:   repo,
@@ -23,16 +25,17 @@ func NewService(repo pkg.Repository, dbrepo pkg.DBRepository) pkg.Service {
 	}
 }
 
+//SaveURL ...
 func (s *Service) SaveURL(URL string) (string, error) {
 
 	var link string
-	if DataBase {
+	if dataBase {
 		if link, err := s.dbrepo.DBCheckURL(URL); err == nil {
 			return link, err
 		}
 
 		for {
-			link = GenerateLink(URL)
+			link = generateLink()
 			if err := s.dbrepo.DBSaveURL(URL, link); err == nil {
 				return link, nil
 			}
@@ -40,7 +43,7 @@ func (s *Service) SaveURL(URL string) (string, error) {
 	}
 
 	for {
-		link = GenerateLink(URL)
+		link = generateLink()
 		if shortURL, err := s.repo.SaveURL(URL, link); err == nil {
 			return shortURL, nil
 		}
@@ -48,8 +51,9 @@ func (s *Service) SaveURL(URL string) (string, error) {
 
 }
 
+//GetURL ...
 func (s *Service) GetURL(link string) (string, error) {
-	if DataBase {
+	if dataBase {
 		URL, err := s.dbrepo.DBGetURL(link)
 		return URL, err
 	}
@@ -57,7 +61,7 @@ func (s *Service) GetURL(link string) (string, error) {
 	return URL, err
 }
 
-func GenerateLink(URL string) string {
+func generateLink() string {
 	link := make([]byte, 10)
 	rand.Seed(time.Now().UnixNano())
 	for i := range link {

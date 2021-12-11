@@ -3,32 +3,40 @@ package handler
 import (
 	"LinkShortener/pkg"
 	"errors"
-	"fmt"
 	"github.com/labstack/echo"
 	"net/http"
 	"net/url"
 )
 
+const (
+	letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_"
+)
+
+//URL struct for parsing JSON
 type URL struct {
 	URL string `json:"URL"`
 }
 
+//Handler ...
 type Handler struct {
 	services pkg.Service
 }
 
+//NewHandler ...
 func NewHandler(services pkg.Service) *Handler {
 	return &Handler{
 		services: services,
 	}
 }
 
+//InitHandler ...
 func (h *Handler) InitHandler(e *echo.Echo) {
 
 	e.POST("/link", h.SaveURL)
 	e.GET("/:link", h.GetURL)
 }
 
+//SaveURL ...
 func (h *Handler) SaveURL(c echo.Context) error {
 	var URL URL
 
@@ -51,10 +59,14 @@ func (h *Handler) SaveURL(c echo.Context) error {
 
 }
 
+//GetURL ...
 func (h *Handler) GetURL(c echo.Context) error {
-	fmt.Println(c.Path())
-	link := c.Get("link").(string)
 
+	link := c.Param("link")
+
+	if err := isValidLink(link); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
 	URL, err := h.services.GetURL(link)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
@@ -72,11 +84,30 @@ func (h *Handler) GetURL(c echo.Context) error {
 
 func isValidURL(URL string) error {
 	if _, err := url.ParseRequestURI(URL); err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, errors.New("This is not a valid URL."))
+		return echo.NewHTTPError(http.StatusBadRequest, errors.New("this is not a valid URL"))
 	}
 	u, err := url.Parse(URL)
 	if err != nil || u.Host == "" {
-		return echo.NewHTTPError(http.StatusBadRequest, errors.New("This is not a valid URL."))
+		return echo.NewHTTPError(http.StatusBadRequest, errors.New("this is not a valid URL"))
+	}
+	return nil
+}
+
+func isValidLink(link string) error {
+	rs := []rune(link)
+
+	if len(rs) != 10 {
+		return echo.NewHTTPError(http.StatusBadRequest, errors.New("this is not a valid link"))
+	}
+	m := make(map[rune]struct{})
+	for _, ch := range []rune(letterBytes) {
+		m[ch] = struct{}{}
+	}
+
+	for _, ch := range rs {
+		if _, inMap := m[ch]; !inMap {
+			return echo.NewHTTPError(http.StatusBadRequest, errors.New("this is not a valid link"))
+		}
 	}
 	return nil
 }
