@@ -7,6 +7,7 @@ import (
 	"errors"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
+	"os"
 	"testing"
 )
 
@@ -27,7 +28,7 @@ func setUp(t *testing.T) (*mocks.MockRepository, *mocks.MockDBRepository, pkg.Se
 
 func TestService_SaveURL(t *testing.T) {
 	rep, repDb, service := setUp(t)
-	if dataBase {
+	if os.Getenv("DB") == "true" {
 		repDb.EXPECT().DBCheckURL(testURL.URL).Return("", errors.New(""))
 		repDb.EXPECT().DBSaveURL(testURL.URL, gomock.Any()).AnyTimes().Return(nil)
 
@@ -45,7 +46,7 @@ func TestService_SaveURL(t *testing.T) {
 
 func TestService_GetURL(t *testing.T) {
 	rep, repDb, service := setUp(t)
-	if dataBase {
+	if os.Getenv("DB") == "true" {
 		repDb.EXPECT().DBGetURL(testLink).Return(testURL.URL, nil)
 		_, err := service.GetURL(testLink)
 		assert.Nil(t, err)
@@ -61,7 +62,7 @@ func TestService_GetURL(t *testing.T) {
 
 func TestService_GetURLError(t *testing.T) {
 	rep, repDb, service := setUp(t)
-	if dataBase {
+	if os.Getenv("DB") == "true" {
 		repDb.EXPECT().DBGetURL(testLink).Return("", errors.New(""))
 		_, err := service.GetURL(testLink)
 		assert.NotNil(t, err)
