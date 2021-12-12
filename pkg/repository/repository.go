@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/jackc/pgx/v4"
 )
 
 type link struct {
@@ -21,26 +20,26 @@ type Repository struct {
 	storage map[string]string
 }
 
-//DBRepository ...
+//DBRepository in Postgres DB
 type DBRepository struct {
 	db *sql.DB
 }
 
-//NewRepository ...
+//NewRepository initializes new in-memory repository
 func NewRepository(storage map[string]string) pkg.Repository {
 	return &Repository{
 		storage: storage,
 	}
 }
 
-//NewDBRepository ...
+//NewDBRepository initializes new Postgres repository
 func NewDBRepository(db *sql.DB) pkg.DBRepository {
 	return &DBRepository{
 		db: db,
 	}
 }
 
-//SaveURL ...
+//SaveURL saves URL and link in Map
 func (r *Repository) SaveURL(URL, link string) (string, error) {
 	if link, inMap := r.storage[URL]; inMap {
 		return link, nil
@@ -53,7 +52,7 @@ func (r *Repository) SaveURL(URL, link string) (string, error) {
 	return "", errors.New("Duplicate link")
 }
 
-//GetURL ...
+//GetURL gets URL from Map
 func (r *Repository) GetURL(link string) (string, error) {
 	if _, inMap := r.storage[link]; inMap {
 		return r.storage[link], nil
@@ -61,7 +60,7 @@ func (r *Repository) GetURL(link string) (string, error) {
 	return "", errors.New("there is no URL for this link")
 }
 
-//DBSaveURL ...
+//DBSaveURL saves URL in Postgres DB
 func (r *DBRepository) DBSaveURL(URL, link string) error {
 	_, err := r.db.Exec(`INSERT INTO urlandlinks (url, link) values ($1, $2)`, URL, link)
 
@@ -72,21 +71,21 @@ func (r *DBRepository) DBSaveURL(URL, link string) error {
 	return nil
 }
 
-//DBGetURL ...
+//DBGetURL gets URL from Postgres DB
 func (r *DBRepository) DBGetURL(link string) (string, error) {
 	URL := &URL{}
 
 	row := r.db.QueryRow(`SELECT url FROM urlandlinks WHERE link = $1`, link)
 	err := row.Scan(&URL.URL)
 
-	if errors.As(err, &pgx.ErrNoRows) {
+	if err != nil {
 		return "", errors.New("Invalid link")
 	}
 
 	return URL.URL, nil
 }
 
-//DBCheckURL ...
+//DBCheckURL checks URL in Postgres DB
 func (r *DBRepository) DBCheckURL(url string) (string, error) {
 	link := &link{}
 

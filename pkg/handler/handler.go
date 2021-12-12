@@ -17,26 +17,26 @@ type URL struct {
 	URL string `json:"URL"`
 }
 
-//Handler ...
+//Handler struct
 type Handler struct {
 	services pkg.Service
 }
 
-//NewHandler ...
+//NewHandler create a new Handler
 func NewHandler(services pkg.Service) *Handler {
 	return &Handler{
 		services: services,
 	}
 }
 
-//InitHandler ...
+//InitHandler initializes handlers
 func (h *Handler) InitHandler(e *echo.Echo) {
 
 	e.POST("/link", h.SaveURL)
 	e.GET("/:link", h.GetURL)
 }
 
-//SaveURL ...
+//SaveURL parses body, checks it and transfers to the service layer
 func (h *Handler) SaveURL(c echo.Context) error {
 	var URL URL
 
@@ -59,7 +59,7 @@ func (h *Handler) SaveURL(c echo.Context) error {
 
 }
 
-//GetURL ...
+//GetURL gets the "link" parameter, checks it and transfers to the service layer
 func (h *Handler) GetURL(c echo.Context) error {
 
 	link := c.Param("link")

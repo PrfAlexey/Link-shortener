@@ -3,21 +3,21 @@ package service
 import (
 	"LinkShortener/pkg"
 	"math/rand"
+	"os"
 	"time"
 )
 
 const (
 	letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_"
-	dataBase    = true
 )
 
-//Service ...
+//Service struct
 type Service struct {
 	repo   pkg.Repository
 	dbrepo pkg.DBRepository
 }
 
-//NewService ...
+//NewService initializes new Service
 func NewService(repo pkg.Repository, dbrepo pkg.DBRepository) pkg.Service {
 	return &Service{
 		repo:   repo,
@@ -25,11 +25,11 @@ func NewService(repo pkg.Repository, dbrepo pkg.DBRepository) pkg.Service {
 	}
 }
 
-//SaveURL ...
+//SaveURL transfers URL to the repository layer depending on the choice of repository
 func (s *Service) SaveURL(URL string) (string, error) {
 
 	var link string
-	if dataBase {
+	if os.Getenv("DB") == "true" {
 		if link, err := s.dbrepo.DBCheckURL(URL); err == nil {
 			return link, err
 		}
@@ -51,9 +51,9 @@ func (s *Service) SaveURL(URL string) (string, error) {
 
 }
 
-//GetURL ...
+//GetURL gets URL by link from the repository layer depending on the choice of repository
 func (s *Service) GetURL(link string) (string, error) {
-	if dataBase {
+	if os.Getenv("DB") == "true" {
 		URL, err := s.dbrepo.DBGetURL(link)
 		return URL, err
 	}
